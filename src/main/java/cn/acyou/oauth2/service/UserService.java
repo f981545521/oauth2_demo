@@ -13,7 +13,7 @@ import org.springframework.util.CollectionUtils;
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 /**
  * @author youfang
@@ -21,14 +21,14 @@ import java.util.stream.Collectors;
  **/
 @Service
 public class UserService implements UserDetailsService {
-    private List<User> userList;
+    private static List<User> userList =  new ArrayList<>();
     @Autowired
     private PasswordEncoder passwordEncoder;
+    private static String password;
 
     @PostConstruct
     public void initData() {
-        String password = passwordEncoder.encode("123456");
-        userList = new ArrayList<>();
+        password = passwordEncoder.encode("123456");
         userList.add(new User("macro", password, AuthorityUtils.commaSeparatedStringToAuthorityList("admin")));
         userList.add(new User("andy", password, AuthorityUtils.commaSeparatedStringToAuthorityList("client")));
         userList.add(new User("mark", password, AuthorityUtils.commaSeparatedStringToAuthorityList("client")));
@@ -36,11 +36,13 @@ public class UserService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        List<User> findUserList = userList.stream().filter(user -> user.getUsername().equals(username)).collect(Collectors.toList());
-        if (!CollectionUtils.isEmpty(findUserList)) {
-            return findUserList.get(0);
-        } else {
-            throw new UsernameNotFoundException("用户名或密码错误");
+        Optional<User> user = userList.stream().filter(x -> x.getUsername().equals(username)).findFirst();
+        if (user.isPresent()){
+            //这里返回一个新用户
+            //测试中使用userList中的用户会导致 第一次有了密码后，密码被清除了
+            return new User(username, password, user.get().getAuthorities());
+        }else {
+            throw new UsernameNotFoundException("未找到对应用户");
         }
     }
 
